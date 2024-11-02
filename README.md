@@ -38,7 +38,7 @@ python3 main.py --miniature_width=400 --to="collage_output.jpg" /path/to/folder1
 | `--columns`       | Number of columns in the collage. If not specified, the script will automatically compute this value for an optimal width/height ratio. | Auto-calculated      |
 | `folders`         | List of folder paths to scan for images. Each folder will be scanned recursively for supported image formats (`.png`, `.jpg`, `.jpeg`). | -                    |
 | `--no_crop`       | By default, the collage will be cropped to ensure all columns are aligned with the shortest column height, creating a neat, even bottom edge. If included in the command, prevents the final collage image from being cropped.| False                    |
-
+| `--no_auto_rotate` | By default, pictures will be auto rotate based on EXIF orientation. If included prevent this. | False |
 ### Example
 
 To generate a collage with 400px wide thumbnails, save it as `collage_output.jpg`, using a maximum of 100 randomly selected images from the specified folders, run:

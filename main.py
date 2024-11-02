@@ -1,16 +1,18 @@
 import os
 import random
 import math
-from PIL import Image
+from PIL import Image, ExifTags
 from tqdm import tqdm
 import argparse
 
-def fusion_frames_from_folders(folders:list[str], miniature_width:int|None=300, subset_size:int|None=None, columns:int|None=None, no_crop:bool=False) -> Image:
+Image.MAX_IMAGE_PIXELS = 500_000_000
+
+def fusion_frames_from_folders(folders:list[str], miniature_width:int|None=300, subset_size:int|None=None, columns:int|None=None, no_crop:bool=False, no_auto_rotate:bool=False) -> Image:
     """ Fusionne les images des dossiers spécifiés pour créer un collage.
     """
     pictures = find_pictures_in_folders(folders)
     random.shuffle(pictures)
-    frames = load_and_resize_pictures(pictures, target_width=miniature_width, subset_size=subset_size)
+    frames = load_and_resize_pictures(pictures, target_width=miniature_width, subset_size=subset_size, no_auto_rotate=no_auto_rotate)
     collage = create_collage(frames, columns, no_crop)
     return collage
 
@@ -35,7 +37,7 @@ def find_pictures_in_folders(paths:list[str]) -> list[str]:
     print(f"🖼️ Find {len(images)} pictures in the specified folders.")
     return images
 
-def load_and_resize_pictures(pictures:list[str], target_width:int, subset_size:int|None=None):
+def load_and_resize_pictures(pictures:list[str], target_width:int, subset_size:int|None=None, no_auto_rotate:bool=False) -> list[Image]:
     """ Charger et redimensionner les images, avec barre de progression.
     """
     resized_pictures = []
@@ -49,6 +51,8 @@ def load_and_resize_pictures(pictures:list[str], target_width:int, subset_size:i
         for picture in pictures:
             try:
                 with Image.open(picture) as img:
+                    if not no_auto_rotate:
+                        img = correct_image_orientation(img)
                     # Redimensionne l'image dès le chargement
                     resized_image = resize_image_to_width(img, target_width)
                     resized_pictures.append(resized_image)
@@ -174,6 +178,32 @@ def balance_column_heights(columns):
     return columns, min_height
 
 
+def correct_image_orientation(img):
+    try:
+        # Récupérer les métadonnées EXIF de l'image
+        exif = img._getexif()
+        if exif:
+            # Trouver la clé correspondant à l'orientation
+            for tag, value in exif.items():
+                if ExifTags.TAGS.get(tag) == 'Orientation':
+                    orientation = value
+                    if not orientation in [3, 6, 8]:
+                        break
+                    #print(f"🔄 Correcting image orientation: {value}")
+
+                    # Appliquer la rotation/transposition selon l'orientation EXIF
+                    if orientation == 3:
+                        img = img.rotate(180, expand=True)
+                    elif orientation == 6:
+                        img = img.rotate(270, expand=True)
+                    elif orientation == 8:
+                        img = img.rotate(90, expand=True)
+                    break
+    except Exception as e:
+        print(f"Error correcting orientation: {e}")
+
+    return img
+
 def main():
     parser = argparse.ArgumentParser(description="Generate an image collage from multiple folders.")
     parser.add_argument("--miniature_width", type=int, default=300, help="Width of each image in the collage")
@@ -182,6 +212,7 @@ def main():
     parser.add_argument("--subset_size", type=int, default=None, help="Size of the subset to use for collage creation")
     parser.add_argument("--columns", type=int, default=None, help="Number of columns to use in the collage")
     parser.add_argument("--no_crop", action="store_true", help="Crop images to match the shortest column")
+    parser.add_argument("--no_auto_rotate", action="store_true", help="Auto rotate images based on EXIF orientation")
 
     args = parser.parse_args()
     framesFusion = fusion_frames_from_folders(
@@ -190,6 +221,7 @@ def main():
         subset_size=args.subset_size,
         columns=args.columns,
         no_crop=args.no_crop,
+        no_auto_rotate=args.no_auto_rotate,
     )
 
     framesFusion.save(args.to, "JPEG")
