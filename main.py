@@ -5,13 +5,13 @@ from PIL import Image
 from tqdm import tqdm
 import argparse
 
-def fusion_frames_from_folders(folders:list[str], miniature_width:int|None=300, subset_size:int|None=None, columns:int|None=None) -> Image:
+def fusion_frames_from_folders(folders:list[str], miniature_width:int|None=300, subset_size:int|None=None, columns:int|None=None, no_crop:bool=False) -> Image:
     """ Fusionne les images des dossiers spécifiés pour créer un collage.
     """
     pictures = find_pictures_in_folders(folders)
     random.shuffle(pictures)
     frames = load_and_resize_pictures(pictures, target_width=miniature_width, subset_size=subset_size)
-    collage = create_collage(frames, columns)
+    collage = create_collage(frames, columns, no_crop)
     return collage
 
 def find_pictures_in_folders(paths:list[str]) -> list[str]:
@@ -55,7 +55,7 @@ def load_and_resize_pictures(pictures:list[str], target_width:int, subset_size:i
                     pbar.update(1)  # Met à jour la barre de progression
                 
             except Exception as e:
-                print(f"Error loading image {picture} : {e}")
+                print(f"🖼️ Error loading image {picture} : {e}")
 
     return resized_pictures
 
@@ -98,8 +98,8 @@ def distribute_images_uniformly(images, num_columns):
         random.shuffle(c)
     return columns
 
-def create_collage(frames:list[Image], columns:int|None=None) -> Image:
-    print("Resizing images to a common width...")
+def create_collage(frames:list[Image], columns:int|None=None, no_crop:bool=False) -> Image:
+    print("🖼️ Resizing images to a common width...")
 
     total_height = sum(img.height for img in frames)
     avg_height_per_image = total_height / len(frames)
@@ -113,7 +113,7 @@ def create_collage(frames:list[Image], columns:int|None=None) -> Image:
         num_columns = columns
 
     target_column_height = total_height / num_columns * 0.9
-    print(f"Target column height: {target_column_height}px across {num_columns} columns.")
+    print(f"🖼️ Target column height: {target_column_height}px across {num_columns} columns.")
 
     _columns = []
     current_column = []
@@ -121,12 +121,13 @@ def create_collage(frames:list[Image], columns:int|None=None) -> Image:
     
     _columns = distribute_images_uniformly(frames, num_columns)
 
-    collage_width = len(_columns) * frames_width
-    collage_height = max(sum(img.height for img in col) for col in _columns)
-    print(f"Final collage dimensions will be approximately {collage_width}px wide by {collage_height}px high.")
+    if not no_crop:
+        _columns, min_height = balance_column_heights(_columns)
 
-    collage = Image.new("RGB", (collage_width, collage_height), (0, 0, 0))
-    print("Creating collage canvas with a black background...")
+    collage_width = len(_columns) * frames_width
+    collage_theoric_height = max(sum(img.height for img in col) for col in _columns)
+    collage = Image.new("RGB", (collage_width, collage_theoric_height), (0, 0, 0))
+    print("🖼️ Creating collage canvas with a black background...")
 
     x_offset = 0
     for col_num, col in enumerate(_columns, start=1):
@@ -134,11 +135,44 @@ def create_collage(frames:list[Image], columns:int|None=None) -> Image:
         for img in col:
             collage.paste(img, (x_offset, y_offset))
             y_offset += img.height
-        print(f"Placed column {col_num} at x offset {x_offset}.")
+        print(f"🖼️ Placed column {col_num} at x offset {x_offset}.")
         x_offset += frames_width
 
-    print("Collage creation complete!")
+    if not no_crop and (min_height < collage_theoric_height):
+        collage = collage.crop((0, 0, collage_width, min_height))
+        print(f"✂️ Cropping collage to final height of {min_height}px.")
+
+    print("🖼️ Collage creation complete!")
     return collage
+
+def balance_column_heights(columns):
+    # Calculer la hauteur totale de chaque colonne
+    column_heights = [sum(img.height for img in col) for col in columns]
+    min_height = min(column_heights)
+
+    print(f"✂️ Minimum column height to match: {min_height}px")
+
+    # Ajuster chaque colonne pour qu'elle corresponde à la hauteur minimale
+    for col_idx, col in enumerate(columns):
+        excess_height = column_heights[col_idx] - min_height
+        if excess_height > 1:
+            print(f"✂️ Column {col_idx} - Excess height: {excess_height}px, reducing height of each image.")
+            
+            # Calculer le nombre de pixels à enlever par image
+            pixels_to_crop_per_image = excess_height // len(col)
+            
+            for img_idx, img in enumerate(col):
+                # Calculer combien enlever en haut et en bas
+                top_crop = pixels_to_crop_per_image // 2
+                bottom_crop = pixels_to_crop_per_image - top_crop
+
+                # Rogner l'image uniformément sur le haut et le bas
+                cropped_img = img.crop((0, top_crop, img.width, img.height - bottom_crop))
+                col[img_idx] = cropped_img  # Remplacer l'image par sa version rognée
+
+    print("✂️ All columns balanced to the same height.")
+    return columns, min_height
+
 
 def main():
     parser = argparse.ArgumentParser(description="Generate an image collage from multiple folders.")
@@ -147,6 +181,7 @@ def main():
     parser.add_argument("--to", type=str, default="bigfusion.jpg", help="Output file name for the collage")
     parser.add_argument("--subset_size", type=int, default=None, help="Size of the subset to use for collage creation")
     parser.add_argument("--columns", type=int, default=None, help="Number of columns to use in the collage")
+    parser.add_argument("--no_crop", action="store_true", help="Crop images to match the shortest column")
 
     args = parser.parse_args()
     framesFusion = fusion_frames_from_folders(
@@ -154,6 +189,7 @@ def main():
         miniature_width=args.miniature_width, 
         subset_size=args.subset_size,
         columns=args.columns,
+        no_crop=args.no_crop,
     )
 
     framesFusion.save(args.to, "JPEG")

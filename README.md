@@ -37,6 +37,7 @@ python3 main.py --miniature_width=400 --to="collage_output.jpg" /path/to/folder1
 | `--subset_size`   | Number of random images to sample from the input folders, for testing on a reduced dataset.           | All images           |
 | `--columns`       | Number of columns in the collage. If not specified, the script will automatically compute this value for an optimal width/height ratio. | Auto-calculated      |
 | `folders`         | List of folder paths to scan for images. Each folder will be scanned recursively for supported image formats (`.png`, `.jpg`, `.jpeg`). | -                    |
+| `--no_crop`       | By default, the collage will be cropped to ensure all columns are aligned with the shortest column height, creating a neat, even bottom edge. If included in the command, prevents the final collage image from being cropped.| False                    |
 
 ### Example
 
@@ -56,4 +57,4 @@ This script currently supports the following image formats:
 Each specified folder will be scanned recursively to include all images in these formats.
 
 # Warning
-Warning, it's far from perfect. There's still some black at the bottom, and the last column isn't always perfectly balanced. But after a few hours of work with the trusty ChatGPT, it's already pretty cool! Feel free to correct and improve it!
+Warning, it's far from perfect. But after a few hours of work with the trusty ChatGPT, it's already pretty cool! Feel free to correct and improve it!
