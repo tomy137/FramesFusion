@@ -54,8 +54,6 @@ This script currently supports the following image formats:
 - `.jpeg`
 
 Each specified folder will be scanned recursively to include all images in these formats.
-```
-
 
 # Warning
 Warning, it's far from perfect. There's still some black at the bottom, and the last column isn't always perfectly balanced. But after a few hours of work with the trusty ChatGPT, it's already pretty cool! Feel free to correct and improve it!
