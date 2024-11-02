@@ -13,3 +13,6 @@ Using a streamlined two-pass process, the tool first counts images and then disp
 pip install -r requirements.txt
 python3 main.py --miniature_width=400 /path/to/folder1 /path/to/folder2 /path/to/folder3
 ```
+
+# Warning
+Warning, it's far from perfect. There's still some black at the bottom, and the last column isn't always perfectly balanced. But after a few hours of work with the trusty ChatGPT, it's already pretty cool! Feel free to correct and improve it!
